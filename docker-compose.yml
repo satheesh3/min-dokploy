@@ -1,0 +1,75 @@
+version: "3.8"
+
+# One command: make dev (initialises Swarm if needed, then runs this)
+# Access: http://app.127.0.0.1.sslip.io  or  http://localhost:3000
+
+networks:
+  traefik-net:
+    driver: overlay      # overlay so user Swarm services can join it
+    attachable: true
+
+volumes:
+  registry-data:
+  app-data:
+  node_modules:          # keeps Linux-compiled binaries separate from your Mac node_modules
+
+services:
+
+  traefik:
+    image: traefik:v3.3
+    command:
+      # Route compose containers (app itself)
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # Route user Swarm services
+      - "--providers.swarm=true"
+      - "--providers.swarm.exposedbydefault=false"
+      - "--providers.swarm.network=mini-dokploy_traefik-net"
+      - "--entrypoints.web.address=:80"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-net
+
+  registry:
+    image: registry:2
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - traefik-net
+
+  app:
+    image: node:20-alpine
+    working_dir: /app
+    # Runs npm install on first boot, then starts the dev server with hot-reload
+    command: sh -c "npm install --include=dev --prefer-offline && npm run dev"
+    volumes:
+      - .:/app                                    # live source code
+      - /var/run/docker.sock:/var/run/docker.sock # to create Swarm services
+      - app-data:/app/data                        # persist SQLite
+      - node_modules:/app/node_modules            # Linux-compiled binaries
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_PATH=/app/data/mini-dokploy.db
+      - REGISTRY_HOST=127.0.0.1:5000
+      - SWARM_NETWORK=mini-dokploy_traefik-net
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dev-secret-do-not-use-in-prod}
+      - BETTER_AUTH_URL=http://localhost:3000
+    networks:
+      - traefik-net
+    depends_on:
+      - registry
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mini-dokploy.rule=Host(`app.127.0.0.1.sslip.io`)"
+      - "traefik.http.services.mini-dokploy.loadbalancer.server.port=3000"

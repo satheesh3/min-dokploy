@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "noEmit": false,
+    "target": "ES2022",
+    "jsx": "react",
+    "incremental": false
+  },
+  "include": [
+    "src/server.ts",
+    "src/db/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/pipeline/**/*.ts",
+    "src/trpc/**/*.ts",
+    "src/ws/**/*.ts"
+  ],
+  "exclude": ["node_modules", "src/pages/**/*.tsx", "src/pages/**/*.ts"]
+}

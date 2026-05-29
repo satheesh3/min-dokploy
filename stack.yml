@@ -1,0 +1,77 @@
+version: "3.8"
+
+# Production-like local stack — everything runs as Swarm services.
+# Use this when you want to test the full built image (no hot-reload).
+# Usage: make up
+
+networks:
+  traefik-net:
+    driver: overlay
+    attachable: true
+
+volumes:
+  registry-data:
+  app-data:
+
+services:
+
+  traefik:
+    image: traefik:v3.3
+    command:
+      - "--providers.swarm=true"
+      - "--providers.swarm.exposedbydefault=false"
+      - "--providers.swarm.network=mini-dokploy_traefik-net"
+      - "--entrypoints.web.address=:80"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik-net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  registry:
+    image: registry:2
+    volumes:
+      - registry-data:/data
+    networks:
+      - traefik-net
+    ports:
+      - "127.0.0.1:5000:5000"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  app:
+    image: 127.0.0.1:5000/mini-dokploy:latest
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_PATH=/data/mini-dokploy.db
+      - REGISTRY_HOST=127.0.0.1:5000
+      - SWARM_NETWORK=mini-dokploy_traefik-net
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=http://app.127.0.0.1.sslip.io
+    volumes:
+      - app-data:/data
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - traefik-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.mini-dokploy-app.rule=Host(`app.127.0.0.1.sslip.io`)"
+        - "traefik.http.services.mini-dokploy-app.loadbalancer.server.port=3000"

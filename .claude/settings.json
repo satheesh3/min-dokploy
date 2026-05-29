@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/sateeshmadagoni/projects/mini-dokploy/start.sh)",
+      "Bash(npm install *)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(npm view *)",
+      "Bash(python3 -c \"import sys,json; vs=json.load\\(sys.stdin\\); print\\([v for v in vs if v.startswith\\('0.'\\)][-5:]\\)\")",
+      "Bash(grep -v '^NODE_ENV=' /Users/sateeshmadagoni/projects/mini-dokploy/.env)",
+      "Bash(mv /tmp/env.tmp /Users/sateeshmadagoni/projects/mini-dokploy/.env)"
+    ]
+  }
+}
