@@ -63,7 +63,7 @@ services:
       - DATABASE_PATH=/app/data/mini-dokploy.db
       - REGISTRY_HOST=127.0.0.1:5000
       - SWARM_NETWORK=mini-dokploy_traefik-net
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dev-secret-do-not-use-in-prod}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=http://localhost:3000
     networks:
       - traefik-net

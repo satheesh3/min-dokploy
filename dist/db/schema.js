@@ -33,6 +33,7 @@ exports.accounts = (0, sqlite_core_1.sqliteTable)('accounts', {
     accessToken: (0, sqlite_core_1.text)('access_token'),
     refreshToken: (0, sqlite_core_1.text)('refresh_token'),
     accessTokenExpiresAt: (0, sqlite_core_1.integer)('access_token_expires_at', { mode: 'timestamp' }),
+    password: (0, sqlite_core_1.text)('password'),
     createdAt: (0, sqlite_core_1.integer)('created_at', { mode: 'timestamp' }).notNull(),
     updatedAt: (0, sqlite_core_1.integer)('updated_at', { mode: 'timestamp' }).notNull(),
 });
