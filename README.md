@@ -124,6 +124,7 @@ The current architecture is **single-node, single-process**. It handles a solo d
 ### What I'd build next
 
 - [ ] Encrypt env vars at rest — currently stored as plaintext JSON in SQLite
+- [ ] Bring your own server — connect a remote VM via SSH, join it as a Swarm worker node, and target deployments at it; mini-dokploy stays the control plane but the workload runs on the user's own infrastructure
 - [ ] Branch/tag selection for git clone — currently always clones the default branch
 - [ ] Per-user deploy concurrency limit — prevent one user from saturating the build node
 - [ ] Client-side WS reconnect — currently a dropped connection loses the live log tail
@@ -162,8 +163,8 @@ AI was used as a force multiplier, not a replacement for judgment. The rule of t
 
 **No production hygiene instinct.** `console.log` left in `logBus.emitLog` fires on every build event. Health check absent from the Swarm service spec — meaning Swarm can't distinguish a crashed container from a healthy one. Neither was flagged; both required manual review.
 
-### What I kept for myself
+### What I kept to myself
 
-**Schema and data model design.** How to cap log rows without blocking the pipeline, whether env vars and Docker labels should be separate columns, what statuses to track and what transitions to allow — these decisions cascade through the entire system and are slow to verify correct. They're also cheap to get wrong early and expensive to change later. Keeping them in one head rather than generating them prevents the subtle inconsistencies that emerge when structure is assembled piecemeal.
+**Schema design.** Should env vars and Docker labels be one column or two? What statuses does a deployment move through? How do you cap log rows without holding up the pipeline? None of these are hard individually, but they connect. Generate them separately and you end up with a schema that locally makes sense but globally fights itself.
 
-**The `seqRef: { n: number }` pattern.** A mutable reference shared across concurrent async callbacks to maintain a monotonic sequence counter. AI alternatives tended toward closures or classes — more syntax for no gain. Knowing when not to abstract is judgment, not generation.
+**Auth and ownership checks.** Masking credentials before they hit logs, checking deployment ownership on every mutation, authenticating before sending any WebSocket data. Wrote these directly and read them carefully. Getting auth wrong is the kind of bug that doesn't show up in happy-path testing.
