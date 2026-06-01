@@ -26,6 +26,7 @@ export default function DeploymentDetailPage() {
     onSuccess: () => {
       dep.refetch()
       setLogs([])
+      seenRef.current = new Set()
     },
   })
   const deleteMutation = trpc.deployment.delete.useMutation({
@@ -36,6 +37,8 @@ export default function DeploymentDetailPage() {
   const logsEndRef = useRef<HTMLDivElement>(null)
   const seenRef = useRef(new Set<number>())
   const wsRef = useRef<WebSocket | null>(null)
+  const refetchRef = useRef(dep.refetch)
+  useEffect(() => { refetchRef.current = dep.refetch }, [dep.refetch])
 
   // Auto-scroll
   useEffect(() => {
@@ -51,12 +54,19 @@ export default function DeploymentDetailPage() {
   const connectWs = useCallback(() => {
     if (!id) return
     if (wsRef.current) {
+      console.log('[WS] closing existing connection before reconnect')
       wsRef.current.close()
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs?deploymentId=${id}`)
+    const url = `${protocol}//${window.location.host}/ws/logs?deploymentId=${id}`
+    console.log('[WS] connecting', url)
+    const ws = new WebSocket(url)
     wsRef.current = ws
+
+    ws.onopen = () => {
+      console.log('[WS] connection open')
+    }
 
     ws.onmessage = (e) => {
       try {
@@ -65,30 +75,40 @@ export default function DeploymentDetailPage() {
           | { type: 'done'; finalStatus: string }
 
         if (msg.type === 'log') {
-          if (!seenRef.current.has(msg.seq)) {
+          const isDup = seenRef.current.has(msg.seq)
+          console.log(`[WS] log seq=${msg.seq} dup=${isDup}`, msg.line.slice(0, 60))
+          if (!isDup) {
             seenRef.current.add(msg.seq)
             setLogs((prev) => [...prev, msg.line])
           }
         } else if (msg.type === 'done') {
+          console.log('[WS] done', msg.finalStatus)
           ws.close()
-          dep.refetch()
+          refetchRef.current()
         }
       } catch {
         // ignore parse errors
       }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
+      console.error('[WS] error', err)
       ws.close()
+    }
+
+    ws.onclose = (e) => {
+      console.log('[WS] closed code=', e.code, 'reason=', e.reason, 'clean=', e.wasClean)
     }
 
     return () => {
+      console.log('[WS] effect cleanup — closing ws')
       ws.close()
     }
-  }, [id, dep])
+  }, [id])
 
   // Connect WS when deployment becomes active
   useEffect(() => {
+    console.log('[WS-effect] status=', dep.data?.status, 'id=', id)
     if (!id || !dep.data) return
 
     if (ACTIVE_STATUSES.includes(dep.data.status)) {

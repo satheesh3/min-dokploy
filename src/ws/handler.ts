@@ -34,6 +34,46 @@ export function attachWebSocketServer(wss: WebSocketServer): void {
       return
     }
 
+    // Subscribe to live events IMMEDIATELY before any async work so we don't
+    // miss events emitted between the historical-log fetch and subscription setup.
+    const liveBuffer: Array<{ seq: number; line: string }> = []
+    let flushed = false
+    const seen = new Set<number>()
+
+    const unsubLog = onLog(deploymentId, (event) => {
+      if (seen.has(event.seq)) return
+      seen.add(event.seq)
+      if (!flushed) {
+        liveBuffer.push(event)
+      } else {
+        send(ws, { type: 'log', seq: event.seq, line: event.line })
+      }
+    })
+
+    const unsubDone = onDone(deploymentId, (finalStatus) => {
+      send(ws, { type: 'done', finalStatus })
+      ws.close()
+    })
+
+    // Keep the connection alive through Traefik's idle-connection timeout
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.ping()
+    }, 15_000)
+
+    const cleanup = () => {
+      clearInterval(pingInterval)
+      unsubLog()
+      unsubDone()
+    }
+
+    ws.on('close', (code, reason) => {
+      cleanup()
+    })
+    ws.on('error', (err) => {
+      console.error(`[WS-server] error deploymentId=${deploymentId}`, err)
+      cleanup()
+    })
+
     // Authenticate via session cookie sent with upgrade request
     const cookie = req.headers.cookie ?? ''
     let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null
@@ -67,7 +107,7 @@ export function attachWebSocketServer(wss: WebSocketServer): void {
       return
     }
 
-    // Send historical logs first
+    // Send historical logs, then flush the buffer of live events received above
     const historicalLogs = await db
       .select()
       .from(deploymentLogs)
@@ -75,40 +115,20 @@ export function attachWebSocketServer(wss: WebSocketServer): void {
       .orderBy(asc(deploymentLogs.seq))
 
     for (const log of historicalLogs) {
+      seen.add(log.seq)
       send(ws, { type: 'log', seq: log.seq, line: log.line })
     }
 
-    // If deployment is already in a terminal state, send done and close
-    const terminalStatuses = ['running', 'failed', 'stopped']
-    if (terminalStatuses.includes(dep.status)) {
-      send(ws, { type: 'done', finalStatus: dep.status })
-      ws.close()
-      return
+    // Switch live handler from buffer → direct, flush what we buffered
+    flushed = true
+    for (const event of liveBuffer) {
+      send(ws, { type: 'log', seq: event.seq, line: event.line })
     }
 
-    // Subscribe to live log events
-    const seen = new Set(historicalLogs.map((l) => l.seq))
-
-    const unsubLog = onLog(deploymentId, (event) => {
-      if (!seen.has(event.seq)) {
-        seen.add(event.seq)
-        send(ws, { type: 'log', seq: event.seq, line: event.line })
-      }
-    })
-
-    const unsubDone = onDone(deploymentId, (finalStatus) => {
-      send(ws, { type: 'done', finalStatus })
+    // If deployment is already terminal, send done and close
+    const terminalStatuses = ['running', 'failed', 'stopped']
+    if (terminalStatuses.includes(dep.status)) {
       ws.close()
-    })
-
-    ws.on('close', () => {
-      unsubLog()
-      unsubDone()
-    })
-
-    ws.on('error', () => {
-      unsubLog()
-      unsubDone()
-    })
+    }
   })
 }

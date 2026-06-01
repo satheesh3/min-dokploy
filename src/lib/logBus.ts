@@ -5,7 +5,13 @@ export interface LogEvent {
   seq: number
 }
 
-const buses = new Map<string, EventEmitter>()
+// Next.js API routes run in a separate webpack module context from the custom
+// server, so a plain module-level Map produces two separate instances — one for
+// ws/handler.ts and one for deploy.ts — and they never see each other's events.
+// Pinning to globalThis guarantees a single shared Map across both contexts.
+const g = globalThis as typeof globalThis & { __logBuses?: Map<string, EventEmitter> }
+if (!g.__logBuses) g.__logBuses = new Map()
+const buses = g.__logBuses
 
 export function getBus(deploymentId: string): EventEmitter {
   if (!buses.has(deploymentId)) {
@@ -17,7 +23,10 @@ export function getBus(deploymentId: string): EventEmitter {
 }
 
 export function emitLog(deploymentId: string, event: LogEvent): void {
-  getBus(deploymentId).emit('log', event)
+  const bus = getBus(deploymentId)
+  const listenerCount = bus.listenerCount('log')
+  console.log(`[logBus] emitLog seq=${event.seq} listeners=${listenerCount} deploymentId=${deploymentId}`)
+  bus.emit('log', event)
 }
 
 export function emitDone(deploymentId: string, finalStatus: string): void {

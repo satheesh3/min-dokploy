@@ -39,27 +39,29 @@ async function appendLog(
 
   await db.insert(deploymentLogs).values({ deploymentId, line, seq, createdAt: now })
 
-  // Cap at MAX_LOG_LINES — delete oldest rows beyond the limit
-  const oldest = await db
-    .select({ id: deploymentLogs.id })
+  // Emit to live subscribers immediately after insert — don't wait for the cap cleanup
+  emitLog(deploymentId, { seq, line })
+
+  // Cap at MAX_LOG_LINES in the background — fire and forget
+  db.select({ id: deploymentLogs.id })
     .from(deploymentLogs)
     .where(eq(deploymentLogs.deploymentId, deploymentId))
     .orderBy(sql`${deploymentLogs.seq} DESC`)
     .limit(MAX_LOG_LINES)
-
-  if (oldest.length === MAX_LOG_LINES) {
-    const keepIds = oldest.map((r) => r.id)
-    await db
-      .delete(deploymentLogs)
-      .where(
-        and(
-          eq(deploymentLogs.deploymentId, deploymentId),
-          notInArray(deploymentLogs.id, keepIds)
-        )
-      )
-  }
-
-  emitLog(deploymentId, { seq, line })
+    .then((oldest) => {
+      if (oldest.length === MAX_LOG_LINES) {
+        const keepIds = oldest.map((r) => r.id)
+        return db
+          .delete(deploymentLogs)
+          .where(
+            and(
+              eq(deploymentLogs.deploymentId, deploymentId),
+              notInArray(deploymentLogs.id, keepIds)
+            )
+          )
+      }
+    })
+    .catch(() => {})
 }
 
 function maskCredentials(url: string): string {
