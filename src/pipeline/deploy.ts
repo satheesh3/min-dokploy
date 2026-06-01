@@ -10,6 +10,7 @@ import { db } from '@/db'
 import { deployments, deploymentLogs } from '@/db/schema'
 import { eq, and, notInArray, sql } from 'drizzle-orm'
 import type { DeploymentStatus } from '@/db/schema'
+import type Dockerode from 'dockerode'
 
 export interface DeployOptions {
   deploymentId: string
@@ -153,7 +154,7 @@ function buildServiceSpec(
   tag: string,
   exposedPort: number,
   customLabels: Record<string, string>
-) {
+): Dockerode.CreateServiceOptions {
   const domain = deploymentDomain(id)
   const routerName = `dep-${id}`
 
@@ -171,6 +172,7 @@ function buildServiceSpec(
     TaskTemplate: {
       ContainerSpec: {
         Image: tag,
+        Env: [`PORT=${exposedPort}`],
       },
       RestartPolicy: {
         Condition: 'on-failure',
@@ -209,8 +211,8 @@ async function createOrUpdateService(
     }
   }
 
-  const service = await docker.createService(spec as any)
-  return (service as any).ID ?? (service as any).id
+  const service = await docker.createService(spec)
+  return service.id
 }
 
 export async function runDeployPipeline(opts: DeployOptions): Promise<void> {

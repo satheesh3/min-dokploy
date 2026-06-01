@@ -25,7 +25,6 @@ export function getBus(deploymentId: string): EventEmitter {
 export function emitLog(deploymentId: string, event: LogEvent): void {
   const bus = getBus(deploymentId)
   const listenerCount = bus.listenerCount('log')
-  console.log(`[logBus] emitLog seq=${event.seq} listeners=${listenerCount} deploymentId=${deploymentId}`)
   bus.emit('log', event)
 }
 

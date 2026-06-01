@@ -128,6 +128,7 @@ export function attachWebSocketServer(wss: WebSocketServer): void {
     // If deployment is already terminal, send done and close
     const terminalStatuses = ['running', 'failed', 'stopped']
     if (terminalStatuses.includes(dep.status)) {
+      send(ws, { type: 'done', finalStatus: dep.status })
       ws.close()
     }
   })
