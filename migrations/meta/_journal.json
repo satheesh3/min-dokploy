@@ -15,6 +15,13 @@
       "when": 1780089079504,
       "tag": "0001_serious_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1780353254997,
+      "tag": "0002_sticky_the_professor",
+      "breakpoints": true
     }
   ]
 }

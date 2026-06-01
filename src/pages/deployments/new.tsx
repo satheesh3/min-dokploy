@@ -17,6 +17,8 @@ export default function NewDeploymentPage() {
   const [dockerfilePath, setDockerfilePath] = useState('Dockerfile')
   const [exposedPort, setExposedPort] = useState('3000')
   const [labels, setLabels] = useState<LabelEntry[]>([])
+  const [envVarEntries, setEnvVarEntries] = useState<LabelEntry[]>([])
+  const [healthCheckPath, setHealthCheckPath] = useState('')
   const [error, setError] = useState('')
 
   const create = trpc.deployment.create.useMutation({
@@ -59,12 +61,19 @@ export default function NewDeploymentPage() {
       if (key.trim()) customLabels[key.trim()] = value
     }
 
+    const envVars: Record<string, string> = {}
+    for (const { key, value } of envVarEntries) {
+      if (key.trim()) envVars[key.trim()] = value
+    }
+
     create.mutate({
       name,
       gitUrl,
       dockerfilePath: dockerfilePath || 'Dockerfile',
       exposedPort: port,
       customLabels,
+      envVars,
+      healthCheckPath: healthCheckPath.trim() || null,
     })
   }
 
@@ -124,6 +133,72 @@ export default function NewDeploymentPage() {
               min={1}
               max={65535}
               required
+              className={inputCls}
+            />
+          </Field>
+
+          {/* Environment variables */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-300">
+                Environment variables
+                <span className="ml-2 text-xs text-gray-500">(optional)</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setEnvVarEntries([...envVarEntries, { key: '', value: '' }])}
+                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                + Add variable
+              </button>
+            </div>
+            <div className="space-y-2">
+              {envVarEntries.map((entry, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={entry.key}
+                    onChange={(e) => {
+                      const next = [...envVarEntries]
+                      next[i] = { ...next[i], key: e.target.value }
+                      setEnvVarEntries(next)
+                    }}
+                    placeholder="KEY"
+                    className={`${inputCls} flex-1 font-mono`}
+                  />
+                  <input
+                    type="text"
+                    value={entry.value}
+                    onChange={(e) => {
+                      const next = [...envVarEntries]
+                      next[i] = { ...next[i], value: e.target.value }
+                      setEnvVarEntries(next)
+                    }}
+                    placeholder="value"
+                    className={`${inputCls} flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEnvVarEntries(envVarEntries.filter((_, idx) => idx !== i))}
+                    className="px-2 text-gray-500 hover:text-red-400 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Health check path */}
+          <Field
+            label="Health check path"
+            hint="HTTP path Swarm probes to detect crashes (e.g. /health). Leave blank to skip."
+          >
+            <input
+              type="text"
+              value={healthCheckPath}
+              onChange={(e) => setHealthCheckPath(e.target.value)}
+              placeholder="/health"
               className={inputCls}
             />
           </Field>

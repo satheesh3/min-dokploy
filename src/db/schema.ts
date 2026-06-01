@@ -68,6 +68,8 @@ export const deployments = sqliteTable(
     dockerfilePath: text('dockerfile_path').notNull().default('Dockerfile'),
     exposedPort: integer('exposed_port').notNull(),
     customLabels: text('custom_labels').notNull().default('{}'),
+    envVars: text('env_vars').notNull().default('{}'),
+    healthCheckPath: text('health_check_path'),
     status: text('status').$type<DeploymentStatus>().notNull().default('pending'),
     serviceId: text('service_id'),
     domain: text('domain'),

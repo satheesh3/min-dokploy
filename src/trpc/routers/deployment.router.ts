@@ -13,6 +13,8 @@ const CreateDeploymentInput = z.object({
   dockerfilePath: z.string().default('Dockerfile'),
   exposedPort: z.number().int().min(1).max(65535),
   customLabels: z.record(z.string()).optional().default({}),
+  envVars: z.record(z.string()).optional().default({}),
+  healthCheckPath: z.string().nullable().optional().default(null),
 })
 
 export const deploymentRouter = router({
@@ -31,6 +33,8 @@ export const deploymentRouter = router({
         dockerfilePath: input.dockerfilePath,
         exposedPort: input.exposedPort,
         customLabels: JSON.stringify(input.customLabels),
+        envVars: JSON.stringify(input.envVars),
+        healthCheckPath: input.healthCheckPath,
         status: 'pending',
         domain,
         createdAt: now,
@@ -45,6 +49,8 @@ export const deploymentRouter = router({
           dockerfilePath: input.dockerfilePath,
           exposedPort: input.exposedPort,
           customLabels: input.customLabels,
+          envVars: input.envVars,
+          healthCheckPath: input.healthCheckPath,
         }).catch(console.error)
       })
 
@@ -67,6 +73,8 @@ export const deploymentRouter = router({
       dockerfilePath: r.dockerfilePath,
       exposedPort: r.exposedPort,
       customLabels: parseLabels(r.customLabels),
+      envVars: parseLabels(r.envVars),
+      healthCheckPath: r.healthCheckPath,
       serviceId: r.serviceId,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
@@ -94,6 +102,8 @@ export const deploymentRouter = router({
         dockerfilePath: dep.dockerfilePath,
         exposedPort: dep.exposedPort,
         customLabels: parseLabels(dep.customLabels),
+        envVars: parseLabels(dep.envVars),
+        healthCheckPath: dep.healthCheckPath,
         serviceId: dep.serviceId,
         createdAt: dep.createdAt,
         updatedAt: dep.updatedAt,
@@ -148,8 +158,31 @@ export const deploymentRouter = router({
           dockerfilePath: dep.dockerfilePath,
           exposedPort: dep.exposedPort,
           customLabels: parseLabels(dep.customLabels),
+          envVars: parseLabels(dep.envVars),
+          healthCheckPath: dep.healthCheckPath,
         }).catch(console.error)
       })
+
+      return { ok: true }
+    }),
+
+  stop: protectedProc
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const dep = await assertOwner(ctx, input.id)
+
+      if (dep.serviceId) {
+        try {
+          await docker.getService(dep.serviceId).remove()
+        } catch {
+          // Already gone
+        }
+      }
+
+      await ctx.db
+        .update(deployments)
+        .set({ status: 'stopped', updatedAt: new Date() })
+        .where(eq(deployments.id, input.id))
 
       return { ok: true }
     }),

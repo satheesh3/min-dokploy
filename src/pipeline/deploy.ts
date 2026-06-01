@@ -18,6 +18,8 @@ export interface DeployOptions {
   dockerfilePath: string
   exposedPort: number
   customLabels: Record<string, string>
+  envVars: Record<string, string>
+  healthCheckPath: string | null
 }
 
 const SWARM_NETWORK = process.env.SWARM_NETWORK ?? 'mini-dokploy_traefik-net'
@@ -153,7 +155,9 @@ function buildServiceSpec(
   id: string,
   tag: string,
   exposedPort: number,
-  customLabels: Record<string, string>
+  customLabels: Record<string, string>,
+  envVars: Record<string, string>,
+  healthCheckPath: string | null
 ): Dockerode.CreateServiceOptions {
   const domain = deploymentDomain(id)
   const routerName = `dep-${id}`
@@ -172,7 +176,19 @@ function buildServiceSpec(
     TaskTemplate: {
       ContainerSpec: {
         Image: tag,
-        Env: [`PORT=${exposedPort}`],
+        Env: [
+          `PORT=${exposedPort}`,
+          ...Object.entries(envVars).map(([k, v]) => `${k}=${v}`),
+        ],
+        ...(healthCheckPath && {
+          HealthCheck: {
+            Test: ['CMD-SHELL', `wget -qO- http://localhost:${exposedPort}${healthCheckPath} || exit 1`],
+            Interval: 30_000_000_000,
+            Timeout: 10_000_000_000,
+            Retries: 3,
+            StartPeriod: 30_000_000_000,
+          },
+        }),
       },
       RestartPolicy: {
         Condition: 'on-failure',
@@ -193,9 +209,11 @@ async function createOrUpdateService(
   existingServiceId: string | null | undefined,
   tag: string,
   exposedPort: number,
-  customLabels: Record<string, string>
+  customLabels: Record<string, string>,
+  envVars: Record<string, string>,
+  healthCheckPath: string | null
 ): Promise<string> {
-  const spec = buildServiceSpec(id, tag, exposedPort, customLabels)
+  const spec = buildServiceSpec(id, tag, exposedPort, customLabels, envVars, healthCheckPath)
 
   if (existingServiceId) {
     try {
@@ -216,7 +234,7 @@ async function createOrUpdateService(
 }
 
 export async function runDeployPipeline(opts: DeployOptions): Promise<void> {
-  const { deploymentId, gitUrl, dockerfilePath, exposedPort, customLabels } = opts
+  const { deploymentId, gitUrl, dockerfilePath, exposedPort, customLabels, envVars, healthCheckPath } = opts
   const seqRef = { n: 0 }
   let tmpDir: string | null = null
 
@@ -252,7 +270,9 @@ export async function runDeployPipeline(opts: DeployOptions): Promise<void> {
       deployment?.serviceId,
       tag,
       exposedPort,
-      customLabels
+      customLabels,
+      envVars,
+      healthCheckPath
     )
 
     await db

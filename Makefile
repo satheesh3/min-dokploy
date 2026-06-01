@@ -32,8 +32,8 @@ up: ensure-env ensure-swarm
 	npm run build
 	docker build -t 127.0.0.1:5000/mini-dokploy:latest .
 	docker push 127.0.0.1:5000/mini-dokploy:latest
-	@set -a && . ./.env && set +a && \
-		docker stack deploy --with-registry-auth -c stack.yml mini-dokploy
+	docker service update --image 127.0.0.1:5000/mini-dokploy:latest \
+		--with-registry-auth mini-dokploy_app
 	@echo ""
 	@echo "  App:     http://app.127.0.0.1.sslip.io"
 	@echo "  Traefik: http://localhost:8080"

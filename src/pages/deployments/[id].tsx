@@ -29,6 +29,9 @@ export default function DeploymentDetailPage() {
       seenRef.current = new Set()
     },
   })
+  const stopMutation = trpc.deployment.stop.useMutation({
+    onSuccess: () => dep.refetch(),
+  })
   const deleteMutation = trpc.deployment.delete.useMutation({
     onSuccess: () => router.push('/'),
   })
@@ -161,6 +164,15 @@ export default function DeploymentDetailPage() {
           >
             Redeploy
           </button>
+          {deployment.status === 'running' && (
+            <button
+              onClick={() => stopMutation.mutate({ id: deployment.id })}
+              disabled={stopMutation.isPending}
+              className="px-3 py-1.5 text-sm text-yellow-400 hover:text-yellow-300 border border-yellow-900 hover:border-yellow-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Stop
+            </button>
+          )}
           <button
             onClick={() => {
               if (confirm(`Delete "${deployment.name}"?`)) {
@@ -201,6 +213,17 @@ export default function DeploymentDetailPage() {
         <InfoItem label="Port">
           <span className="text-gray-300">{deployment.exposedPort}</span>
         </InfoItem>
+        {Object.keys(deployment.envVars).length > 0 && (
+          <InfoItem label="Env vars">
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(deployment.envVars).map(([k]) => (
+                <span key={k} className="text-xs bg-gray-800 px-2 py-0.5 rounded font-mono text-gray-300">
+                  {k}=***
+                </span>
+              ))}
+            </div>
+          </InfoItem>
+        )}
         {Object.keys(deployment.customLabels).length > 0 && (
           <InfoItem label="Labels">
             <div className="flex flex-wrap gap-1">
