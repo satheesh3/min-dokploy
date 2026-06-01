@@ -135,7 +135,7 @@ The current architecture is **single-node, single-process**. It handles a solo d
 - [ ] Rollback — redeploy from a previously pushed image tag without a rebuild
 - [ ] Resource limits (CPU/memory) in the Swarm service spec — currently unconstrained
 - [ ] Deployment versioning — keep a history of builds per project, not just the current state
-- [ ] Custom domains — map a user-owned domain to a deployment
+- [ ] Custom domains & SSL — map a user-owned domain to a deployment
 
 ---
 
