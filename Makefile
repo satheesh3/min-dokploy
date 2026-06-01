@@ -1,4 +1,4 @@
-.PHONY: dev dev-down up down logs ps
+.PHONY: up down logs ps
 
 # Generates .env with a real secret if it doesn't exist yet
 ensure-env:
@@ -12,14 +12,6 @@ ensure-swarm:
 	@docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active \
 		|| docker swarm init --advertise-addr 127.0.0.1
 
-# ── Development (hot-reload) ───────────────────────────────────
-# Mini-Dokploy runs as a plain Compose container (for fast iteration).
-# Docker Compose reads .env automatically for variable substitution.
-dev: ensure-env ensure-swarm
-	docker compose up
-
-dev-down:
-	docker compose down -v
 
 # ── Production-like (Swarm stack) ─────────────────────────────
 # Both Mini-Dokploy and user deployments run as Docker Swarm services.

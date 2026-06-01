@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx src/server.ts",
     "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && next build",
     "start": "node dist/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "lint": "next lint"
+    "lint": "next lint",
+    "up": "sh scripts/up.sh",
+    "down": "sh scripts/down.sh",
+    "logs": "docker service logs -f mini-dokploy_app",
+    "ps": "docker service ls"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.0",

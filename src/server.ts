@@ -1,5 +1,5 @@
 import http from 'http'
-import { parse } from 'url'
+
 import next from 'next'
 import { WebSocketServer } from 'ws'
 import { runMigrations } from './db/index'
@@ -18,15 +18,14 @@ async function main() {
   await app.prepare()
 
   const server = http.createServer((req, res) => {
-    const parsedUrl = parse(req.url ?? '/', true)
-    handle(req, res, parsedUrl)
+    handle(req, res)
   })
 
   const wss = new WebSocketServer({ noServer: true })
   attachWebSocketServer(wss)
 
   server.on('upgrade', (req, socket, head) => {
-    const { pathname } = parse(req.url ?? '/')
+    const { pathname } = new URL(req.url ?? '/', 'http://localhost')
     if (pathname === '/ws/logs') {
       wss.handleUpgrade(req, socket as import('net').Socket, head, (ws) => {
         wss.emit('connection', ws, req)

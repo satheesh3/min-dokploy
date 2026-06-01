@@ -17,7 +17,8 @@
       "Bash(curl -s https://raw.githubusercontent.com/satheesh3/express/main/Dockerfile)",
       "Bash(curl -s https://raw.githubusercontent.com/satheesh3/express/main/package.json)",
       "Bash(curl -s https://raw.githubusercontent.com/satheesh3/express/main/docker-compose.yml)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(chmod +x /Users/sateeshmadagoni/projects/mini-dokploy/scripts/*.sh)"
     ]
   }
 }
